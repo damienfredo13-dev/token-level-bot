@@ -17,6 +17,8 @@ PORT = int(os.getenv("PORT", "10000"))
 
 # Stockage temporaire des données utilisateurs
 mises = {}
+tokens = {}
+paliers_atteints = {}
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -41,7 +43,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Le bot est bien connecté.\n\n"
         "💰 Définir ta mise mensuelle : /mise\n"
         "📊 Enregistrer ton palier : /palier\n"
-        "🎲 Lancer le dé : /de"
+        "🎲 Lancer le dé : /de\n"
+        "🪙 Gérer tes tokens : /token\n"
+        "📈 Voir ta progression : /profil"
     )
 
 
@@ -87,6 +91,102 @@ async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text(
+            "🪙 Indique le nombre de tokens à ajouter ou retirer.\n\n"
+            "Exemples :\n"
+            "/token 3 → ajoute 3 tokens\n"
+            "/token -1 → retire 1 token"
+        )
+        return
+
+    try:
+        variation = int(context.args[0])
+
+        user_id = update.effective_user.id
+
+        if user_id not in tokens:
+            tokens[user_id] = 0
+
+        if user_id not in paliers_atteints:
+            paliers_atteints[user_id] = 1
+
+        tokens[user_id] += variation
+
+        # Les tokens ne peuvent pas être négatifs
+        if tokens[user_id] < 0:
+            tokens[user_id] = 0
+
+        # Vérification des nouveaux paliers
+        nouveau_palier = paliers_atteints[user_id]
+
+        if tokens[user_id] >= 50:
+            nouveau_palier = 5
+        elif tokens[user_id] >= 30:
+            nouveau_palier = max(nouveau_palier, 4)
+        elif tokens[user_id] >= 20:
+            nouveau_palier = max(nouveau_palier, 3)
+        elif tokens[user_id] >= 10:
+            nouveau_palier = max(nouveau_palier, 2)
+
+        paliers_atteints[user_id] = nouveau_palier
+
+        if variation > 0:
+            action = f"+{variation}"
+        else:
+            action = str(variation)
+
+        if nouveau_palier == 5:
+            message_palier = "🏆 PALIER FINAL ×5 !"
+        else:
+            message_palier = f"📊 Palier actuel : ×{nouveau_palier}"
+
+        await update.message.reply_text(
+            f"🪙 Tokens : {action}\n\n"
+            f"💰 Total actuel : {tokens[user_id]} Token\n"
+            f"{message_palier}"
+        )
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Montant invalide.\n\n"
+            "Utilise par exemple :\n"
+            "/token 3\n"
+            "ou\n"
+            "/token -1"
+        )
+
+
+async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    total_tokens = tokens.get(user_id, 0)
+    palier_actuel = paliers_atteints.get(user_id, 1)
+
+    if palier_actuel == 5:
+        progression = "🏆 Palier final ×5"
+    elif palier_actuel == 4:
+        progression = "🔥 Palier ×4"
+    elif palier_actuel == 3:
+        progression = "🚀 Palier ×3"
+    elif palier_actuel == 2:
+        progression = "📈 Palier ×2"
+    else:
+        progression = "🔰 Départ"
+
+    await update.message.reply_text(
+        "📊 TON PROFIL TOKEN - LEVEL\n\n"
+        f"🪙 Tokens : {total_tokens}\n"
+        f"{progression}\n\n"
+        "🎯 Barème :\n"
+        "×2 → 10 tokens\n"
+        "×3 → 20 tokens\n"
+        "×4 → 30 tokens\n"
+        "×5 → 50 tokens"
+    )
+
+
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texte = update.message.text.replace(",", ".").strip()
 
@@ -115,7 +215,7 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return
 
-    # Enregistrement du palier
+    # Enregistrement manuel du palier
     if context.user_data.get("attente_palier"):
 
         paliers = {
@@ -168,6 +268,8 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("mise", mise))
 app.add_handler(CommandHandler("palier", palier))
 app.add_handler(CommandHandler("de", de))
+app.add_handler(CommandHandler("token", token))
+app.add_handler(CommandHandler("profil", profil))
 
 app.add_handler(
     MessageHandler(
