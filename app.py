@@ -2,6 +2,7 @@ import os
 import threading
 import random
 from http.server import BaseHTTPRequestHandler, HTTPServer
+
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -10,41 +11,62 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+
 TOKEN = os.getenv("BOT_TOKEN")
 PORT = int(os.getenv("PORT", "10000"))
+
 # ID du canal Token - Level
 CHANNEL_ID = -1004324987579
+
 # ID du propriétaire du canal
 OWNER_ID = None
+
 # Données temporaires des utilisateurs
 mises = {}
 tokens = {}
 paliers_atteints = {}
 derniers_des = {}
+
+
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-Type", "text/plain")
         self.end_headers()
         self.wfile.write(b"Token - Level Bot is running!")
+
     def log_message(self, format, *args):
         pass
+
+
 def start_web_server():
     server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
     server.serve_forever()
+
+
 # ============================================================
 # ENVOI DANS LE CANAL
 # ============================================================
+
 async def envoyer_au_canal(context, texte):
     await context.bot.send_message(
         chat_id=CHANNEL_ID,
         text=texte,
         parse_mode="Markdown"
     )
+
+
 # ============================================================
 # START
 # ============================================================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # On nettoie les éventuelles attentes précédentes
+    context.user_data["attente_mise"] = False
+    context.user_data["attente_palier"] = False
+    context.user_data["confirmation_reset"] = False
+    context.user_data["proposition_owner"] = False
+
     await update.message.reply_text(
         "🚀 Bienvenue sur Token - Level !\n\n"
         "Le bot est bien connecté.\n\n"
@@ -60,30 +82,46 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🟥 VAR : /var\n"
         "🔄 Reset : /reset"
     )
+
+
 # ============================================================
 # MISE
 # ============================================================
+
 async def mise(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # On nettoie toutes les autres attentes
     context.user_data["attente_mise"] = True
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
+    context.user_data["proposition_owner"] = False
+
     await update.message.reply_text(
         "💰 Quelle est ta mise mensuelle de départ ?\n\n"
         "Exemple : 50"
     )
+
+
 # ============================================================
 # PALIER
 # ============================================================
+
 async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     mise_actuelle = mises.get(update.effective_user.id)
+
     if mise_actuelle is None:
         await update.message.reply_text(
             "❌ Tu dois d'abord définir ta mise avec /mise"
         )
         return
+
+    # On nettoie toutes les autres attentes
     context.user_data["attente_palier"] = True
     context.user_data["attente_mise"] = False
     context.user_data["confirmation_reset"] = False
+    context.user_data["proposition_owner"] = False
+
     await update.message.reply_text(
         "📊 Quel palier as-tu atteint ?\n\n"
         "1️⃣ ×2\n"
@@ -92,30 +130,50 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "4️⃣ ×5\n\n"
         "Réponds avec 1, 2, 3 ou 4."
     )
+
+
 # ============================================================
 # DE
 # ============================================================
+
 async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # On annule les éventuelles attentes
+    context.user_data["attente_mise"] = False
+    context.user_data["attente_palier"] = False
+    context.user_data["confirmation_reset"] = False
+    context.user_data["proposition_owner"] = False
+
     resultat = random.randint(1, 3)
+
     derniers_des[update.effective_user.id] = resultat
+
     message = (
         "🎲 **LANCEMENT DU DÉ** 🎲\n\n"
         f"🎯 Résultat : **{resultat}**"
     )
+
     await envoyer_au_canal(context, message)
+
     await update.message.reply_text(
         "✅ Résultat du dé publié dans le canal !"
     )
+
+
 # ============================================================
 # CALCUL
 # ============================================================
+
 async def calcul(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     user_id = update.effective_user.id
+
     if user_id not in derniers_des:
         await update.message.reply_text(
             "❌ Tu dois d'abord lancer le dé avec /de"
         )
         return
+
     if not context.args:
         await update.message.reply_text(
             "🧮 Indique un nombre à multiplier.\n\n"
@@ -123,29 +181,39 @@ async def calcul(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/calcul 1.50"
         )
         return
+
     try:
         nombre = float(context.args[0].replace(",", "."))
+
         resultat_de = derniers_des[user_id]
         resultat = nombre * resultat_de
+
         message = (
             "🧮 **CALCUL TOKEN - LEVEL**\n\n"
             f"💰 Base : **{nombre:.2f}**\n"
             f"🎲 Dé : **{resultat_de}**\n\n"
             f"🪙 Résultat : **{resultat:.2f} Token**"
         )
+
         await envoyer_au_canal(context, message)
+
         await update.message.reply_text(
             "✅ Calcul publié dans le canal !"
         )
+
     except ValueError:
         await update.message.reply_text(
             "❌ Nombre invalide.\n\n"
             "Exemple : /calcul 1.50"
         )
+
+
 # ============================================================
 # TOKEN
 # ============================================================
+
 async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     if not context.args:
         await update.message.reply_text(
             "🪙 Indique le nombre de tokens à ajouter ou retirer.\n\n"
@@ -154,17 +222,24 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/token -1"
         )
         return
+
     try:
         variation = int(context.args[0])
         user_id = update.effective_user.id
+
         if user_id not in tokens:
             tokens[user_id] = 0
+
         if user_id not in paliers_atteints:
             paliers_atteints[user_id] = 1
+
         tokens[user_id] += variation
+
         if tokens[user_id] < 0:
             tokens[user_id] = 0
+
         nouveau_palier = paliers_atteints[user_id]
+
         if tokens[user_id] >= 50:
             nouveau_palier = 5
         elif tokens[user_id] >= 30:
@@ -173,34 +248,46 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             nouveau_palier = max(nouveau_palier, 3)
         elif tokens[user_id] >= 10:
             nouveau_palier = max(nouveau_palier, 2)
+
         paliers_atteints[user_id] = nouveau_palier
+
         if nouveau_palier == 5:
             message_palier = "🏆 PALIER FINAL ×5 !"
         else:
             message_palier = f"📊 Palier actuel : ×{nouveau_palier}"
+
         message = (
             "🪙 **TOKEN - LEVEL**\n\n"
             f"📈 Variation : **{variation:+d} Token**\n\n"
             f"💰 Total : **{tokens[user_id]} Token**\n"
             f"{message_palier}"
         )
+
         await envoyer_au_canal(context, message)
+
         await update.message.reply_text(
             "✅ Mise à jour des Tokens publiée dans le canal !"
         )
+
     except ValueError:
         await update.message.reply_text(
             "❌ Valeur invalide.\n\n"
             "Exemple : /token 3"
         )
+
+
 # ============================================================
 # PROFIL
 # ============================================================
+
 async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     user_id = update.effective_user.id
+
     total_tokens = tokens.get(user_id, 0)
     palier_actuel = paliers_atteints.get(user_id, 1)
     dernier_de = derniers_des.get(user_id, "—")
+
     if palier_actuel == 5:
         progression = "🏆 Palier final ×5"
     elif palier_actuel == 4:
@@ -211,6 +298,7 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
         progression = "📈 Palier ×2"
     else:
         progression = "🔰 Départ"
+
     message = (
         "📊 **TON PROFIL TOKEN - LEVEL**\n\n"
         f"🪙 Tokens : **{total_tokens}**\n"
@@ -222,14 +310,20 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "×4 → 30 tokens\n"
         "×5 → 50 tokens"
     )
+
     await envoyer_au_canal(context, message)
+
     await update.message.reply_text(
         "✅ Profil publié dans le canal !"
     )
+
+
 # ============================================================
 # GAGNE
 # ============================================================
+
 async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     message = (
         "🚨💥 **ENCORE UNE VICTOIRE !** 💥🚨\n\n"
         "🎯 **PARI GAGNÉ !**\n"
@@ -241,14 +335,20 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "⚡️ Une chose est sûre :\n"
         "**il n’a clairement pas fini de ramasser des Tokens.** 🪙💰"
     )
+
     await envoyer_au_canal(context, message)
+
     await update.message.reply_text(
         "✅ Victoire publiée dans le canal !"
     )
+
+
 # ============================================================
 # PERDU
 # ============================================================
+
 async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     message = (
         "💀😂 **ET BAH ALORS… ON A GLISSÉ CHEF !** 😂💀\n\n"
         "🎯 Cette fois, le pari nous a dit : **« NON. »** 😭\n\n"
@@ -261,28 +361,40 @@ async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "👀 Alors on garde le sourire et on continue !\n\n"
         "🪙💪 **TOKEN - LEVEL : ON LÂCHE RIEN !** 🚀"
     )
+
     await envoyer_au_canal(context, message)
+
     await update.message.reply_text(
         "💔 Défaite publiée dans le canal !"
     )
+
+
 # ============================================================
 # GOAL
 # ============================================================
+
 async def goal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     message = (
         "🚨⚽ **GOOOOOOOOOOOOOOOOOOOOOOOOAAAAAALLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL !!!!!!** ⚽🚨\n\n"
         "🔥🔥 **IL EST LÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ !!!** 🔥🔥\n\n"
         "💰 **GOAL VALIDÉ !**\n"
         "🚀 **ON MONTE D’UN NIVEAU !**"
     )
+
     await envoyer_au_canal(context, message)
+
     await update.message.reply_text(
         "✅ GOAL publié dans le canal !"
     )
+
+
 # ============================================================
 # VAR
 # ============================================================
+
 async def var(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     message = (
         "🚨🟥 **ARRÊTEZ TOUT !!!**\n\n"
         "🧑‍⚖️ **L’ARBITRE NOUS A ENCULÉS !!!** 😭🤬\n\n"
@@ -290,32 +402,49 @@ async def var(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "❌ **BUT REFUSÉ !!!**\n\n"
         "💀 **ON S’EST FAIT VOLER !!!**"
     )
+
     await envoyer_au_canal(context, message)
+
     await update.message.reply_text(
         "🟥 VAR publié dans le canal !"
     )
+
+
 # ============================================================
 # RESET
 # ============================================================
+
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     user_id = update.effective_user.id
+
+    # Nettoyage des anciennes attentes
+    context.user_data["attente_mise"] = False
+    context.user_data["attente_palier"] = False
+
     # Première utilisation : on enregistre le propriétaire
     if OWNER_ID is None:
+
         context.user_data["proposition_owner"] = True
+        context.user_data["confirmation_reset"] = False
+
         await update.message.reply_text(
             "⚠️ Le bot doit d'abord identifier le propriétaire.\n\n"
             "Comme tu es propriétaire du canal, réponds :\n\n"
             "**PROPRIETAIRE**"
         )
         return
+
     if user_id != OWNER_ID:
+
         await update.message.reply_text(
             "❌ Cette commande est réservée au propriétaire du bot."
         )
         return
+
+    context.user_data["proposition_owner"] = False
     context.user_data["confirmation_reset"] = True
-    context.user_data["attente_mise"] = False
-    context.user_data["attente_palier"] = False
+
     await update.message.reply_text(
         "⚠️ **RESET TOKEN - LEVEL** ⚠️\n\n"
         "Cette action va supprimer :\n"
@@ -327,39 +456,35 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Écris **CONFIRMER** pour continuer.",
         parse_mode="Markdown"
     )
+
+
 # ============================================================
 # MESSAGES TEXTE
 # ============================================================
+
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     texte = update.message.text.replace(",", ".").strip()
-    # --------------------------------------------------------
-    # IDENTIFICATION PROPRIÉTAIRE
-    # --------------------------------------------------------
-    if context.user_data.get("proposition_owner"):
-        if texte.upper() == "PROPRIETAIRE":
-            global OWNER_ID
-            OWNER_ID = update.effective_user.id
-            context.user_data["proposition_owner"] = False
-            await update.message.reply_text(
-                "✅ Propriétaire enregistré.\n\n"
-                "Tu peux maintenant utiliser /reset."
-            )
-        else:
-            await update.message.reply_text(
-                "❌ Réponse incorrecte."
-            )
-        return
+
     # --------------------------------------------------------
     # CONFIRMATION RESET
     # --------------------------------------------------------
+
     if context.user_data.get("confirmation_reset"):
+
         if texte.upper() == "CONFIRMER":
+
             user_id = update.effective_user.id
+
             mises.pop(user_id, None)
             tokens.pop(user_id, None)
             paliers_atteints.pop(user_id, None)
             derniers_des.pop(user_id, None)
+
             context.user_data["confirmation_reset"] = False
+            context.user_data["attente_mise"] = False
+            context.user_data["attente_palier"] = False
+
             message = (
                 "🔄 **RESET TOKEN - LEVEL**\n\n"
                 "🧹 Profil remis à zéro.\n\n"
@@ -369,71 +494,132 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🎲 Dernier dé : —\n\n"
                 "🚀 **Nouveau départ !**"
             )
+
             await envoyer_au_canal(context, message)
+
             await update.message.reply_text(
                 "✅ Reset effectué et publié dans le canal !"
             )
+
         else:
+
             await update.message.reply_text(
                 "❌ Reset annulé.\n\n"
                 "Écris **CONFIRMER** pour valider."
             )
+
         return
+
+    # --------------------------------------------------------
+    # IDENTIFICATION PROPRIÉTAIRE
+    # --------------------------------------------------------
+
+    if context.user_data.get("proposition_owner"):
+
+        if texte.upper() == "PROPRIETAIRE":
+
+            global OWNER_ID
+
+            OWNER_ID = update.effective_user.id
+
+            context.user_data["proposition_owner"] = False
+
+            await update.message.reply_text(
+                "✅ Propriétaire enregistré.\n\n"
+                "Tu peux maintenant utiliser /reset."
+            )
+
+        else:
+
+            await update.message.reply_text(
+                "❌ Réponse incorrecte."
+            )
+
+        return
+
     # --------------------------------------------------------
     # RÉPONSE À /MISE
     # --------------------------------------------------------
+
     if context.user_data.get("attente_mise"):
+
         try:
+
             montant = float(texte)
+
             if montant <= 0:
                 raise ValueError
+
             user_id = update.effective_user.id
+
             mises[user_id] = montant
+
             context.user_data["attente_mise"] = False
+
             message = (
                 "💰 **MISE MENSUELLE ENREGISTRÉE**\n\n"
                 f"💵 Mise de départ : **{montant:.2f} €**\n\n"
                 "🚀 Ton profil Token - Level est prêt pour la suite."
             )
+
             await envoyer_au_canal(context, message)
+
             await update.message.reply_text(
                 "✅ Mise enregistrée et publiée dans le canal !"
             )
+
         except ValueError:
+
             await update.message.reply_text(
                 "❌ Montant invalide.\n\n"
                 "Exemple : 50"
             )
+
         return
+
     # --------------------------------------------------------
     # RÉPONSE À /PALIER
     # --------------------------------------------------------
+
     if context.user_data.get("attente_palier"):
+
         paliers = {
             "1": 2,
             "2": 3,
             "3": 4,
             "4": 5,
         }
+
         if texte not in paliers:
+
             await update.message.reply_text(
                 "❌ Choix invalide.\n\n"
                 "Réponds avec 1, 2, 3 ou 4."
             )
+
             return
+
         user_id = update.effective_user.id
         mise_actuelle = mises.get(user_id)
+
         if mise_actuelle is None:
+
             context.user_data["attente_palier"] = False
+
             await update.message.reply_text(
                 "❌ Ta mise n'est plus enregistrée.\n\n"
                 "Utilise /mise."
             )
+
             return
+
         multiplicateur = paliers[texte]
+
         montant_atteint = mise_actuelle * multiplicateur
         benefice = montant_atteint - mise_actuelle
+
         context.user_data["attente_palier"] = False
+
         message = (
             f"🎯 **PALIER ×{multiplicateur} ATTEINT !**\n\n"
             f"💰 Mise de départ : **{mise_actuelle:.2f} €**\n"
@@ -441,19 +627,32 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💵 Bénéfice : **+{benefice:.2f} €**\n\n"
             f"🔄 Base du mois suivant : **{mise_actuelle:.2f} €**"
         )
+
         await envoyer_au_canal(context, message)
+
         await update.message.reply_text(
             "✅ Palier publié dans le canal !"
         )
+
         return
+
+
 # ============================================================
 # SERVEUR WEB
 # ============================================================
-threading.Thread(target=start_web_server, daemon=True).start()
+
+threading.Thread(
+    target=start_web_server,
+    daemon=True
+).start()
+
+
 # ============================================================
 # APPLICATION TELEGRAM
 # ============================================================
+
 app = Application.builder().token(TOKEN).build()
+
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("mise", mise))
 app.add_handler(CommandHandler("palier", palier))
@@ -466,10 +665,12 @@ app.add_handler(CommandHandler("perdu", perdu))
 app.add_handler(CommandHandler("goal", goal))
 app.add_handler(CommandHandler("var", var))
 app.add_handler(CommandHandler("reset", reset))
+
 app.add_handler(
     MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         recevoir_message,
     )
 )
+
 app.run_polling()
