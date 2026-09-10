@@ -1,5 +1,6 @@
 import os
 import threading
+import random
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from telegram import Update
@@ -39,7 +40,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🚀 Bienvenue sur Token - Level !\n\n"
         "Le bot est bien connecté.\n\n"
         "💰 Définir ta mise mensuelle : /mise\n"
-        "📊 Enregistrer ton palier : /palier"
+        "📊 Enregistrer ton palier : /palier\n"
+        "🎲 Lancer le dé : /de"
     )
 
 
@@ -72,6 +74,16 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "3️⃣ ×4\n"
         "4️⃣ ×5\n\n"
         "Réponds simplement avec 1, 2, 3 ou 4."
+    )
+
+
+async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    multiplicateur = random.randint(1, 3)
+
+    await update.message.reply_text(
+        "🎲 Lancement du dé...\n\n"
+        f"🎯 Résultat : **{multiplicateur}**",
+        parse_mode="Markdown"
     )
 
 
@@ -132,7 +144,6 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         multiplicateur = paliers[texte]
-
         montant_atteint = mise_actuelle * multiplicateur
         benefice = montant_atteint - mise_actuelle
 
@@ -156,6 +167,7 @@ app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("mise", mise))
 app.add_handler(CommandHandler("palier", palier))
+app.add_handler(CommandHandler("de", de))
 
 app.add_handler(
     MessageHandler(
