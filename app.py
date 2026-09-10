@@ -320,6 +320,19 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def id_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.forward_origin:
+        origin = update.message.forward_origin
+
+        await update.message.reply_text(
+            f"📢 Message transféré détecté !\n\n"
+            f"Type : {type(origin).__name__}\n"
+            f"Infos : {origin}"
+        )
+    else:
+        await update.message.reply_text(
+            "❌ Aucun message transféré détecté."
+        )
 threading.Thread(target=start_web_server, daemon=True).start()
 
 app = Application.builder().token(TOKEN).build()
@@ -333,6 +346,7 @@ app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
 app.add_handler(CommandHandler("gagne", gagne))
 app.add_handler(CommandHandler("perdu", perdu))
+app.add_handler(CommandHandler("id", id_channel))
 
 app.add_handler(
     MessageHandler(
