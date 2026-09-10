@@ -14,6 +14,13 @@ from telegram.ext import (
 
 TOKEN = os.getenv("BOT_TOKEN")
 PORT = int(os.getenv("PORT", "10000"))
+CHANNEL_ID = -1004324987579
+async def envoyer_au_canal(context, texte):
+    await context.bot.send_message(
+        chat_id=CHANNEL_ID,
+        text=texte,
+        parse_mode="Markdown"
+    )
 
 # Données temporaires des utilisateurs
 mises = {}
@@ -221,7 +228,7 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+    message = (
         "🚨💥 **ENCORE UNE VICTOIRE !** 💥🚨\n\n"
         "🎯 **PARI GAGNÉ !**\n"
         "🪙 Des **Tokens supplémentaires** viennent de tomber !\n\n"
@@ -230,13 +237,18 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🏆 Les paliers se rapprochent...\n\n"
         "👀 **Mais où va-t-il s'arrêter ?!**\n\n"
         "⚡️ Une chose est sûre :\n"
-        "**il n’a clairement pas fini de ramasser des Tokens.** 🪙💰",
-        parse_mode="Markdown"
+        "**il n’a clairement pas fini de ramasser des Tokens.** 🪙💰"
+    )
+
+    await envoyer_au_canal(context, message)
+
+    await update.message.reply_text(
+        "✅ Victoire publiée dans le canal !"
     )
 
 
 async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+    message = (
         "💀😂 **ET BAH ALORS… ON A GLISSÉ CHEF !** 😂💀\n\n"
         "🎯 Cette fois, le pari nous a dit : **« NON. »** 😭\n\n"
         "🪙 Un Token s’est fait la malle…\n"
@@ -246,8 +258,13 @@ async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📈 On repart chercher les prochains Tokens !\n\n"
         "🍀 **La prochaine, c’est peut-être le jackpot…**\n"
         "👀 Alors on garde le sourire et on continue !\n\n"
-        "🪙💪 **TOKEN - LEVEL : ON LÂCHE RIEN !** 🚀",
-        parse_mode="Markdown"
+        "🪙💪 **TOKEN - LEVEL : ON LÂCHE RIEN !** 🚀"
+    )
+
+    await envoyer_au_canal(context, message)
+
+    await update.message.reply_text(
+        "💔 Défaite publiée dans le canal !"
     )
 
 
@@ -333,6 +350,12 @@ async def id_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "❌ Aucun message transféré détecté."
         )
+async def envoyer_au_canal(context, texte):
+    await context.bot.send_message(
+        chat_id=CHANNEL_ID,
+        text=texte,
+        parse_mode="Markdown"
+    )
 threading.Thread(target=start_web_server, daemon=True).start()
 
 app = Application.builder().token(TOKEN).build()
@@ -346,7 +369,7 @@ app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
 app.add_handler(CommandHandler("gagne", gagne))
 app.add_handler(CommandHandler("perdu", perdu))
-app.add_handler(CommandHandler("id", id_channel))
+
 
 app.add_handler(
     MessageHandler(
