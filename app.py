@@ -9,7 +9,10 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    ChannelPostHandler,
     filters,
+)
+
 )
 
 TOKEN = os.getenv("BOT_TOKEN")
