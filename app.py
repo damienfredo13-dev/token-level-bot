@@ -363,7 +363,9 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔄 Base du mois suivant : {mise_actuelle:.2f} €"
         )
 
-
+async def detecter_canal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.channel_post:
+        print(f"📢 CANAL_ID = {update.channel_post.chat.id}")
 threading.Thread(target=start_web_server, daemon=True).start()
 
 app = Application.builder().token(TOKEN).build()
