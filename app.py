@@ -15,10 +15,11 @@ from telegram.ext import (
 TOKEN = os.getenv("BOT_TOKEN")
 PORT = int(os.getenv("PORT", "10000"))
 
-# Stockage temporaire des données utilisateurs
+# Données temporaires des utilisateurs
 mises = {}
 tokens = {}
 paliers_atteints = {}
+derniers_des = {}
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -41,11 +42,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚀 Bienvenue sur Token - Level !\n\n"
         "Le bot est bien connecté.\n\n"
-        "💰 Définir ta mise mensuelle : /mise\n"
-        "📊 Enregistrer ton palier : /palier\n"
+        "💰 Mise mensuelle : /mise\n"
+        "📊 Palier : /palier\n"
         "🎲 Lancer le dé : /de\n"
-        "🪙 Gérer tes tokens : /token\n"
-        "📈 Voir ta progression : /profil"
+        "🧮 Calculatrice : /calcul\n"
+        "🪙 Tokens : /token\n"
+        "📈 Profil : /profil"
     )
 
 
@@ -77,18 +79,57 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "2️⃣ ×3\n"
         "3️⃣ ×4\n"
         "4️⃣ ×5\n\n"
-        "Réponds simplement avec 1, 2, 3 ou 4."
+        "Réponds avec 1, 2, 3 ou 4."
     )
 
 
 async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    multiplicateur = random.randint(1, 3)
+    resultat = random.randint(1, 3)
+
+    # Mémorise le dernier résultat pour cet utilisateur
+    derniers_des[update.effective_user.id] = resultat
 
     await update.message.reply_text(
         "🎲 Lancement du dé...\n\n"
-        f"🎯 Résultat : **{multiplicateur}**",
+        f"🎯 Résultat : **{resultat}**",
         parse_mode="Markdown"
     )
+
+
+async def calcul(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if user_id not in derniers_des:
+        await update.message.reply_text(
+            "❌ Tu dois d'abord lancer le dé avec /de"
+        )
+        return
+
+    if not context.args:
+        await update.message.reply_text(
+            "🧮 Indique un nombre à multiplier.\n\n"
+            "Exemple :\n"
+            "/calcul 1.50"
+        )
+        return
+
+    try:
+        nombre = float(context.args[0].replace(",", "."))
+        resultat_de = derniers_des[user_id]
+
+        resultat = nombre * resultat_de
+
+        await update.message.reply_text(
+            f"🧮 {nombre:.2f} × {resultat_de} = "
+            f"**{resultat:.2f} Token 🪙**",
+            parse_mode="Markdown"
+        )
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Nombre invalide.\n\n"
+            "Exemple : /calcul 1.50"
+        )
 
 
 async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -96,14 +137,13 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "🪙 Indique le nombre de tokens à ajouter ou retirer.\n\n"
             "Exemples :\n"
-            "/token 3 → ajoute 3 tokens\n"
-            "/token -1 → retire 1 token"
+            "/token 3\n"
+            "/token -1"
         )
         return
 
     try:
         variation = int(context.args[0])
-
         user_id = update.effective_user.id
 
         if user_id not in tokens:
@@ -114,11 +154,11 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         tokens[user_id] += variation
 
-        # Les tokens ne peuvent pas être négatifs
+        # Minimum de 0 token
         if tokens[user_id] < 0:
             tokens[user_id] = 0
 
-        # Vérification des nouveaux paliers
+        # Vérification du meilleur palier atteint
         nouveau_palier = paliers_atteints[user_id]
 
         if tokens[user_id] >= 50:
@@ -132,29 +172,21 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         paliers_atteints[user_id] = nouveau_palier
 
-        if variation > 0:
-            action = f"+{variation}"
-        else:
-            action = str(variation)
-
         if nouveau_palier == 5:
             message_palier = "🏆 PALIER FINAL ×5 !"
         else:
             message_palier = f"📊 Palier actuel : ×{nouveau_palier}"
 
         await update.message.reply_text(
-            f"🪙 Tokens : {action}\n\n"
-            f"💰 Total actuel : {tokens[user_id]} Token\n"
+            f"🪙 Variation : {variation:+d} Token\n\n"
+            f"💰 Total : {tokens[user_id]} Token\n"
             f"{message_palier}"
         )
 
     except ValueError:
         await update.message.reply_text(
-            "❌ Montant invalide.\n\n"
-            "Utilise par exemple :\n"
-            "/token 3\n"
-            "ou\n"
-            "/token -1"
+            "❌ Valeur invalide.\n\n"
+            "Exemple : /token 3"
         )
 
 
@@ -163,6 +195,7 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     total_tokens = tokens.get(user_id, 0)
     palier_actuel = paliers_atteints.get(user_id, 1)
+    dernier_de = derniers_des.get(user_id, "—")
 
     if palier_actuel == 5:
         progression = "🏆 Palier final ×5"
@@ -178,8 +211,9 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "📊 TON PROFIL TOKEN - LEVEL\n\n"
         f"🪙 Tokens : {total_tokens}\n"
-        f"{progression}\n\n"
-        "🎯 Barème :\n"
+        f"{progression}\n"
+        f"🎲 Dernier dé : {dernier_de}\n\n"
+        "🎯 BARÈME\n"
         "×2 → 10 tokens\n"
         "×3 → 20 tokens\n"
         "×4 → 30 tokens\n"
@@ -190,7 +224,6 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texte = update.message.text.replace(",", ".").strip()
 
-    # Enregistrement de la mise
     if context.user_data.get("attente_mise"):
 
         try:
@@ -210,12 +243,11 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except ValueError:
             await update.message.reply_text(
                 "❌ Montant invalide.\n\n"
-                "Envoie simplement un montant, par exemple : 50"
+                "Exemple : 50"
             )
 
         return
 
-    # Enregistrement manuel du palier
     if context.user_data.get("attente_palier"):
 
         paliers = {
@@ -228,7 +260,7 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if texte not in paliers:
             await update.message.reply_text(
                 "❌ Choix invalide.\n\n"
-                "Réponds avec : 1, 2, 3 ou 4."
+                "Réponds avec 1, 2, 3 ou 4."
             )
             return
 
@@ -239,7 +271,7 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await update.message.reply_text(
                 "❌ Ta mise n'est plus enregistrée.\n\n"
-                "Utilise /mise pour la définir à nouveau."
+                "Utilise /mise."
             )
             return
 
@@ -257,8 +289,6 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔄 Base du mois suivant : {mise_actuelle:.2f} €"
         )
 
-        return
-
 
 threading.Thread(target=start_web_server, daemon=True).start()
 
@@ -268,6 +298,7 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("mise", mise))
 app.add_handler(CommandHandler("palier", palier))
 app.add_handler(CommandHandler("de", de))
+app.add_handler(CommandHandler("calcul", calcul))
 app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
 
