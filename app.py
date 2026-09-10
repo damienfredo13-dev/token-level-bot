@@ -220,6 +220,19 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "×5 → 50 tokens"
     )
 
+async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🚨💥 **ENCORE UNE VICTOIRE !** 💥🚨\n\n"
+        "🎯 **PARI GAGNÉ !**\n"
+        "🪙 Des **Tokens supplémentaires** viennent de tomber !\n\n"
+        "🔥🔥 Il enchaîne les victoires...\n"
+        "📈 Le compteur grimpe encore...\n"
+        "🏆 Les paliers se rapprochent...\n\n"
+        "👀 **Mais où va-t-il s'arrêter ?!**\n\n"
+        "⚡️ Une chose est sûre :\n"
+        "**il n’a clairement pas fini de ramasser des Tokens.** 🪙💰",
+        parse_mode="Markdown"
+    )
 
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texte = update.message.text.replace(",", ".").strip()
@@ -301,6 +314,7 @@ app.add_handler(CommandHandler("de", de))
 app.add_handler(CommandHandler("calcul", calcul))
 app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
+app.add_handler(CommandHandler("gagne", gagne)) 
 
 app.add_handler(
     MessageHandler(
