@@ -12,8 +12,6 @@ from telegram.ext import (
     filters,
 )
 
-
-
 TOKEN = os.getenv("BOT_TOKEN")
 PORT = int(os.getenv("PORT", "10000"))
 
@@ -39,10 +37,7 @@ def start_web_server():
     server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
     server.serve_forever()
 
-async def canal_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        f"🆔 ID : {update.effective_chat.id}"
-    )
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚀 Bienvenue sur Token - Level !\n\n"
@@ -242,56 +237,18 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-     "💀😂 **ET BAH ALORS… ON A GLISSÉ CHEF !** 😂💀\n\n"
-
+        "💀😂 **ET BAH ALORS… ON A GLISSÉ CHEF !** 😂💀\n\n"
         "🎯 Cette fois, le pari nous a dit : **« NON. »** 😭\n\n"
-
         "🪙 Un Token s’est fait la malle…\n"
-
         "🏃‍♂️💨 Mais pas de panique, il reviendra avec ses copains !\n\n"
-
         "🤣 On perd une bataille, **pas la guerre !**\n"
-
         "🔥 On relève la tête !\n"
-
         "📈 On repart chercher les prochains Tokens !\n\n"
-
         "🍀 **La prochaine, c’est peut-être le jackpot…**\n"
-
         "👀 Alors on garde le sourire et on continue !\n\n"
-
         "🪙💪 **TOKEN - LEVEL : ON LÂCHE RIEN !** 🚀",
-
         parse_mode="Markdown"
     )
-async def bienvenue(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    for membre in update.message.new_chat_members:
-        if membre.is_bot:
-            continue
-
-        await update.message.reply_text(
-            "🚨 **NOUVEAU SPECTATEUR DÉTECTÉ !** 🚨\n\n"
-            "👀 Oh… encore quelqu’un qui vient voir jusqu’où **IL** va aller ! 😂\n\n"
-            "Bienvenue dans **TOKEN - LEVEL** 🪙🔥\n\n"
-            "🎯 **LE BUT ? Faire grossir au maximum les gains et tenter de faire le plus d’argent possible !** 💰📈\n\n"
-            "🎲 **Je lance le dé**\n"
-            "🪙 **Je gagne des Tokens**\n"
-            "📈 **Je monte les paliers**\n"
-            "💀 **Je me prends quelques gamelles**\n"
-            "🏆 **Et j’essaie d’atteindre le fameux ×5 !**\n\n"
-            "😂 Toi, ton rôle est beaucoup plus tranquille :\n\n"
-            "🍿 **Tu regardes.**\n"
-            "👀 **Tu suis la progression.**\n"
-            "🔥 **Tu encourages.**\n"
-            "🤣 **Et tu assistes aux moments où ça part complètement en vrille.**\n\n"
-            "⚠️ Parce qu’ici, une seule personne est aux commandes…\n\n"
-            "**MOI.** 😂\n\n"
-            "🎯 Objectif : **faire grossir la cagnotte au maximum.** 💰🔥\n\n"
-            "Alors installe-toi bien 🍿\n"
-            "La prochaine victoire peut arriver à tout moment…\n\n"
-            "🪙💰 **BIENVENUE DANS TOKEN - LEVEL !** 🚀",
-            parse_mode="Markdown"
-        )
 
 
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -362,9 +319,7 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔄 Base du mois suivant : {mise_actuelle:.2f} €"
         )
 
-async def detecter_canal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.channel_post:
-        print(f"📢 CANAL_ID = {update.channel_post.chat.id}")
+
 threading.Thread(target=start_web_server, daemon=True).start()
 
 app = Application.builder().token(TOKEN).build()
@@ -378,8 +333,6 @@ app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
 app.add_handler(CommandHandler("gagne", gagne))
 app.add_handler(CommandHandler("perdu", perdu))
-app.add_handler(CommandHandler("perdu", perdu))
-app.add_handler(CommandHandler("canalid", canal_id))
 
 app.add_handler(
     MessageHandler(
