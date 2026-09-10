@@ -14,13 +14,9 @@ from telegram.ext import (
 
 TOKEN = os.getenv("BOT_TOKEN")
 PORT = int(os.getenv("PORT", "10000"))
+
+# ID du canal Token - Level
 CHANNEL_ID = -1004324987579
-async def envoyer_au_canal(context, texte):
-    await context.bot.send_message(
-        chat_id=CHANNEL_ID,
-        text=texte,
-        parse_mode="Markdown"
-    )
 
 # Données temporaires des utilisateurs
 mises = {}
@@ -45,6 +41,22 @@ def start_web_server():
     server.serve_forever()
 
 
+# ============================================================
+# ENVOI DANS LE CANAL
+# ============================================================
+
+async def envoyer_au_canal(context, texte):
+    await context.bot.send_message(
+        chat_id=CHANNEL_ID,
+        text=texte,
+        parse_mode="Markdown"
+    )
+
+
+# ============================================================
+# START
+# ============================================================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚀 Bienvenue sur Token - Level !\n\n"
@@ -60,6 +72,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ============================================================
+# MISE
+# ============================================================
+
 async def mise(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["attente_mise"] = True
     context.user_data["attente_palier"] = False
@@ -69,6 +85,10 @@ async def mise(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Exemple : 50"
     )
 
+
+# ============================================================
+# PALIER
+# ============================================================
 
 async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mise_actuelle = mises.get(update.effective_user.id)
@@ -92,17 +112,30 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ============================================================
+# DE
+# ============================================================
+
 async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
     resultat = random.randint(1, 3)
 
     derniers_des[update.effective_user.id] = resultat
 
-    await update.message.reply_text(
-        "🎲 Lancement du dé...\n\n"
-        f"🎯 Résultat : **{resultat}**",
-        parse_mode="Markdown"
+    message = (
+        "🎲 **LANCEMENT DU DÉ** 🎲\n\n"
+        f"🎯 Résultat : **{resultat}**"
     )
 
+    await envoyer_au_canal(context, message)
+
+    await update.message.reply_text(
+        "✅ Résultat du dé publié dans le canal !"
+    )
+
+
+# ============================================================
+# CALCUL
+# ============================================================
 
 async def calcul(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -127,10 +160,17 @@ async def calcul(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         resultat = nombre * resultat_de
 
+        message = (
+            "🧮 **CALCUL TOKEN - LEVEL**\n\n"
+            f"💰 Base : **{nombre:.2f}**\n"
+            f"🎲 Dé : **{resultat_de}**\n\n"
+            f"🪙 Résultat : **{resultat:.2f} Token**"
+        )
+
+        await envoyer_au_canal(context, message)
+
         await update.message.reply_text(
-            f"🧮 {nombre:.2f} × {resultat_de} = "
-            f"**{resultat:.2f} Token 🪙**",
-            parse_mode="Markdown"
+            "✅ Calcul publié dans le canal !"
         )
 
     except ValueError:
@@ -139,6 +179,10 @@ async def calcul(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Exemple : /calcul 1.50"
         )
 
+
+# ============================================================
+# TOKEN
+# ============================================================
 
 async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -183,10 +227,17 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             message_palier = f"📊 Palier actuel : ×{nouveau_palier}"
 
-        await update.message.reply_text(
-            f"🪙 Variation : {variation:+d} Token\n\n"
-            f"💰 Total : {tokens[user_id]} Token\n"
+        message = (
+            "🪙 **TOKEN - LEVEL**\n\n"
+            f"📈 Variation : **{variation:+d} Token**\n\n"
+            f"💰 Total : **{tokens[user_id]} Token**\n"
             f"{message_palier}"
+        )
+
+        await envoyer_au_canal(context, message)
+
+        await update.message.reply_text(
+            "✅ Mise à jour des Tokens publiée dans le canal !"
         )
 
     except ValueError:
@@ -195,6 +246,10 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Exemple : /token 3"
         )
 
+
+# ============================================================
+# PROFIL
+# ============================================================
 
 async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -214,18 +269,28 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         progression = "🔰 Départ"
 
-    await update.message.reply_text(
-        "📊 TON PROFIL TOKEN - LEVEL\n\n"
-        f"🪙 Tokens : {total_tokens}\n"
+    message = (
+        "📊 **TON PROFIL TOKEN - LEVEL**\n\n"
+        f"🪙 Tokens : **{total_tokens}**\n"
         f"{progression}\n"
-        f"🎲 Dernier dé : {dernier_de}\n\n"
-        "🎯 BARÈME\n"
+        f"🎲 Dernier dé : **{dernier_de}**\n\n"
+        "🎯 **BARÈME**\n"
         "×2 → 10 tokens\n"
         "×3 → 20 tokens\n"
         "×4 → 30 tokens\n"
         "×5 → 50 tokens"
     )
 
+    await envoyer_au_canal(context, message)
+
+    await update.message.reply_text(
+        "✅ Profil publié dans le canal !"
+    )
+
+
+# ============================================================
+# GAGNE
+# ============================================================
 
 async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = (
@@ -246,6 +311,10 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✅ Victoire publiée dans le canal !"
     )
 
+
+# ============================================================
+# PERDU
+# ============================================================
 
 async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = (
@@ -268,8 +337,16 @@ async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ============================================================
+# MESSAGES TEXTE : MISE + PALIER
+# ============================================================
+
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texte = update.message.text.replace(",", ".").strip()
+
+    # --------------------------------------------------------
+    # RÉPONSE À /MISE
+    # --------------------------------------------------------
 
     if context.user_data.get("attente_mise"):
 
@@ -282,9 +359,16 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mises[update.effective_user.id] = montant
             context.user_data["attente_mise"] = False
 
+            message = (
+                "💰 **MISE MENSUELLE ENREGISTRÉE**\n\n"
+                f"💵 Mise de départ : **{montant:.2f} €**\n\n"
+                "🚀 Ton profil Token - Level est prêt pour la suite."
+            )
+
+            await envoyer_au_canal(context, message)
+
             await update.message.reply_text(
-                f"✅ Mise mensuelle enregistrée : {montant:.2f} €\n\n"
-                "Ton profil Token - Level est prêt pour la suite. 🚀"
+                "✅ Mise enregistrée et publiée dans le canal !"
             )
 
         except ValueError:
@@ -294,6 +378,10 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
         return
+
+    # --------------------------------------------------------
+    # RÉPONSE À /PALIER
+    # --------------------------------------------------------
 
     if context.user_data.get("attente_palier"):
 
@@ -328,35 +416,33 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data["attente_palier"] = False
 
-        await update.message.reply_text(
-            f"🎯 Palier enregistré : ×{multiplicateur}\n\n"
-            f"💰 Mise de départ : {mise_actuelle:.2f} €\n"
-            f"📈 Montant atteint : {montant_atteint:.2f} €\n"
-            f"💵 Bénéfice : +{benefice:.2f} €\n\n"
-            f"🔄 Base du mois suivant : {mise_actuelle:.2f} €"
+        message = (
+            f"🎯 **PALIER ×{multiplicateur} ATTEINT !**\n\n"
+            f"💰 Mise de départ : **{mise_actuelle:.2f} €**\n"
+            f"📈 Montant atteint : **{montant_atteint:.2f} €**\n"
+            f"💵 Bénéfice : **+{benefice:.2f} €**\n\n"
+            f"🔄 Base du mois suivant : **{mise_actuelle:.2f} €**"
         )
 
-
-async def id_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.forward_origin:
-        origin = update.message.forward_origin
+        await envoyer_au_canal(context, message)
 
         await update.message.reply_text(
-            f"📢 Message transféré détecté !\n\n"
-            f"Type : {type(origin).__name__}\n"
-            f"Infos : {origin}"
+            "✅ Palier publié dans le canal !"
         )
-    else:
-        await update.message.reply_text(
-            "❌ Aucun message transféré détecté."
-        )
-async def envoyer_au_canal(context, texte):
-    await context.bot.send_message(
-        chat_id=CHANNEL_ID,
-        text=texte,
-        parse_mode="Markdown"
-    )
+
+        return
+
+
+# ============================================================
+# SERVEUR WEB
+# ============================================================
+
 threading.Thread(target=start_web_server, daemon=True).start()
+
+
+# ============================================================
+# APPLICATION TELEGRAM
+# ============================================================
 
 app = Application.builder().token(TOKEN).build()
 
@@ -369,7 +455,6 @@ app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
 app.add_handler(CommandHandler("gagne", gagne))
 app.add_handler(CommandHandler("perdu", perdu))
-
 
 app.add_handler(
     MessageHandler(
