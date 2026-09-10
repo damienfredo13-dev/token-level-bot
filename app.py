@@ -37,7 +37,10 @@ def start_web_server():
     server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
     server.serve_forever()
 
-
+async def canal_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        f"🆔 ID : {update.effective_chat.id}"
+    )
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚀 Bienvenue sur Token - Level !\n\n"
@@ -371,6 +374,7 @@ app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
 app.add_handler(CommandHandler("gagne", gagne))
 app.add_handler(CommandHandler("perdu", perdu))
+app.add_handler(CommandHandler("canalid", canal_id))
 
 app.add_handler(
     MessageHandler(
