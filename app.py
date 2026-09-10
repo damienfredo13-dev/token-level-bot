@@ -47,7 +47,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🎲 Lancer le dé : /de\n"
         "🧮 Calculatrice : /calcul\n"
         "🪙 Tokens : /token\n"
-        "📈 Profil : /profil"
+        "📈 Profil : /profil\n"
+        "🎉 Victoire : /gagne\n"
+        "💔 Défaite : /perdu"
     )
 
 
@@ -86,7 +88,6 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
     resultat = random.randint(1, 3)
 
-    # Mémorise le dernier résultat pour cet utilisateur
     derniers_des[update.effective_user.id] = resultat
 
     await update.message.reply_text(
@@ -154,11 +155,9 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         tokens[user_id] += variation
 
-        # Minimum de 0 token
         if tokens[user_id] < 0:
             tokens[user_id] = 0
 
-        # Vérification du meilleur palier atteint
         nouveau_palier = paliers_atteints[user_id]
 
         if tokens[user_id] >= 50:
@@ -220,6 +219,7 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "×5 → 50 tokens"
     )
 
+
 async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚨💥 **ENCORE UNE VICTOIRE !** 💥🚨\n\n"
@@ -233,6 +233,33 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "**il n’a clairement pas fini de ramasser des Tokens.** 🪙💰",
         parse_mode="Markdown"
     )
+
+
+async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+     "💀😂 **ET BAH ALORS… ON A GLISSÉ CHEF !** 😂💀\n\n"
+
+        "🎯 Cette fois, le pari nous a dit : **« NON. »** 😭\n\n"
+
+        "🪙 Un Token s’est fait la malle…\n"
+
+        "🏃‍♂️💨 Mais pas de panique, il reviendra avec ses copains !\n\n"
+
+        "🤣 On perd une bataille, **pas la guerre !**\n"
+
+        "🔥 On relève la tête !\n"
+
+        "📈 On repart chercher les prochains Tokens !\n\n"
+
+        "🍀 **La prochaine, c’est peut-être le jackpot…**\n"
+
+        "👀 Alors on garde le sourire et on continue !\n\n"
+
+        "🪙💪 **TOKEN - LEVEL : ON LÂCHE RIEN !** 🚀",
+
+        parse_mode="Markdown"
+    )
+
 
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texte = update.message.text.replace(",", ".").strip()
@@ -314,7 +341,8 @@ app.add_handler(CommandHandler("de", de))
 app.add_handler(CommandHandler("calcul", calcul))
 app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
-app.add_handler(CommandHandler("gagne", gagne)) 
+app.add_handler(CommandHandler("gagne", gagne))
+app.add_handler(CommandHandler("perdu", perdu))
 
 app.add_handler(
     MessageHandler(
