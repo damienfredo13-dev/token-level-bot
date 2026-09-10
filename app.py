@@ -9,7 +9,6 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
     MessageHandler,
-    ChannelPostHandler,
     filters,
 )
 
@@ -380,7 +379,6 @@ app.add_handler(CommandHandler("profil", profil))
 app.add_handler(CommandHandler("gagne", gagne))
 app.add_handler(CommandHandler("perdu", perdu))
 app.add_handler(CommandHandler("perdu", perdu))
-app.add_handler(ChannelPostHandler(detecter_canal))
 app.add_handler(CommandHandler("canalid", canal_id))
 
 app.add_handler(
