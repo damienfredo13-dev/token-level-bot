@@ -259,6 +259,34 @@ async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         parse_mode="Markdown"
     )
+async def bienvenue(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    for membre in update.message.new_chat_members:
+        if membre.is_bot:
+            continue
+
+        await update.message.reply_text(
+            "🚨 **NOUVEAU SPECTATEUR DÉTECTÉ !** 🚨\n\n"
+            "👀 Oh… encore quelqu’un qui vient voir jusqu’où **IL** va aller ! 😂\n\n"
+            "Bienvenue dans **TOKEN - LEVEL** 🪙🔥\n\n"
+            "🎯 **LE BUT ? Faire grossir au maximum les gains et tenter de faire le plus d’argent possible !** 💰📈\n\n"
+            "🎲 **Je lance le dé**\n"
+            "🪙 **Je gagne des Tokens**\n"
+            "📈 **Je monte les paliers**\n"
+            "💀 **Je me prends quelques gamelles**\n"
+            "🏆 **Et j’essaie d’atteindre le fameux ×5 !**\n\n"
+            "😂 Toi, ton rôle est beaucoup plus tranquille :\n\n"
+            "🍿 **Tu regardes.**\n"
+            "👀 **Tu suis la progression.**\n"
+            "🔥 **Tu encourages.**\n"
+            "🤣 **Et tu assistes aux moments où ça part complètement en vrille.**\n\n"
+            "⚠️ Parce qu’ici, une seule personne est aux commandes…\n\n"
+            "**MOI.** 😂\n\n"
+            "🎯 Objectif : **faire grossir la cagnotte au maximum.** 💰🔥\n\n"
+            "Alors installe-toi bien 🍿\n"
+            "La prochaine victoire peut arriver à tout moment…\n\n"
+            "🪙💰 **BIENVENUE DANS TOKEN - LEVEL !** 🚀",
+            parse_mode="Markdown"
+        )
 
 
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
