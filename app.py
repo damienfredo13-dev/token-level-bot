@@ -381,6 +381,7 @@ app.add_handler(CommandHandler("gagne", gagne))
 app.add_handler(CommandHandler("perdu", perdu))
 app.add_handler(CommandHandler("perdu", perdu))
 app.add_handler(ChannelPostHandler(detecter_canal))
+app.add_handler(CommandHandler("canalid", canal_id))
 
 app.add_handler(
     MessageHandler(
