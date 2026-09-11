@@ -76,6 +76,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
+    context.user_data["attente_message"] = False
 
     await update.message.reply_text(
         "🚀 Bienvenue sur Token - Level !\n\n"
@@ -92,6 +93,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔥 Boost : /boost\n"
         "⚽ Goal : /goal\n"
         "🟥 VAR : /var\n"
+        "✍️ Message personnalisé : /message\n"
         "🔄 Reset : /reset"
     )
 
@@ -107,6 +109,7 @@ async def mise(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
+    context.user_data["attente_message"] = False
 
     await update.message.reply_text(
         "💰 Quelle est ta mise mensuelle de départ ?\n\n"
@@ -133,6 +136,7 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
+    context.user_data["attente_message"] = False
 
     await update.message.reply_text(
         "📊 Quel palier as-tu atteint ?\n\n"
@@ -193,6 +197,7 @@ async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
+    context.user_data["attente_message"] = False
 
     if palier_rappel < 5:
 
@@ -234,6 +239,7 @@ async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
+    context.user_data["attente_message"] = False
 
     resultat = random.randint(1, 3)
 
@@ -327,14 +333,12 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         variation_originale = variation
         boost_utilise = None
 
-        # Le boost ne s'applique qu'à un gain positif
         if variation > 0 and user_id in boost_actif:
 
             multiplicateur = boost_actif[user_id]
             variation = variation * multiplicateur
             boost_utilise = multiplicateur
 
-            # Le boost est consommé après utilisation
             del boost_actif[user_id]
 
         tokens[user_id] += variation
@@ -459,14 +463,12 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
-    # Ajoute une victoire à la série
     victoires_consecutives[user_id] = (
         victoires_consecutives.get(user_id, 0) + 1
     )
 
     serie = victoires_consecutives[user_id]
 
-    # Initialise les boosts débloqués pour cette série
     if user_id not in boosts_debloques:
         boosts_debloques[user_id] = set()
 
@@ -484,7 +486,6 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await envoyer_au_canal(context, message)
 
-    # Annonce du nouveau boost débloqué
     if serie in [3, 5, 10] and serie not in boosts_debloques[user_id]:
 
         boosts_debloques[user_id].add(serie)
@@ -504,8 +505,7 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🔥🔥 **5 VICTOIRES D’AFFILÉE !!!** 🔥🔥\n\n"
                 "🚨 **SUPER BOOST ×3 ACTIVÉ !** 🚨\n\n"
                 "🪙 **PROCHAIN GAIN DE TOKENS = ×3 !!!** 💥💥💥\n\n"
-                "🎯 La série continue…\n"
-                "📈 **Le boost monte d’un niveau !**\n\n"
+                "🔥 La série est en feu.\n"
                 "👀 **ÇA COMMENCE À DEVENIR TRÈS SÉRIEUX…**\n\n"
                 "🚀 **ON VA CHERCHER LE TRIPLE !**"
             )
@@ -516,7 +516,7 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🏆🔥 **SÉRIE LÉGENDAIRE !** 🔥🏆\n\n"
                 "🚀🚀 **BOOST FUSÉE ACTIVÉ !!!** 🚀🚀\n\n"
                 "🪙 **PROCHAIN GAIN DE TOKENS = ×10 !!!** 💥💥💥\n\n"
-                "💣 **×10 TOKENS !**\n\n"
+                "💣💣💣 **×10 TOKENS !** 💣💣💣\n\n"
                 "👑 **10 PARIS. 10 VICTOIRES.**\n\n"
                 "🚀 **ON DÉCOLLE POUR LE ×10 !!!**\n\n"
                 "🪙🔥 **TOKEN - LEVEL EST EN FUSION !**"
@@ -538,10 +538,8 @@ async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
-    # Reset de la série
     victoires_consecutives[user_id] = 0
 
-    # Les boosts non utilisés sont annulés
     boost_actif.pop(user_id, None)
     boosts_debloques[user_id] = set()
 
@@ -577,7 +575,6 @@ async def boost(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["attente_boost"] = False
 
-    # Aucun boost disponible
     if serie < 3:
 
         await update.message.reply_text(
@@ -590,7 +587,6 @@ async def boost(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Détermine les boosts disponibles
     disponibles = []
 
     if serie >= 3:
@@ -656,6 +652,28 @@ async def var(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ============================================================
+# MESSAGE PERSONNALISÉ
+# ============================================================
+
+async def message_personnalise(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # On désactive les autres attentes
+    context.user_data["attente_mise"] = False
+    context.user_data["attente_palier"] = False
+    context.user_data["confirmation_reset"] = False
+    context.user_data["proposition_owner"] = False
+    context.user_data["attente_boost"] = False
+
+    # On active l'attente du message
+    context.user_data["attente_message"] = True
+
+    await update.message.reply_text(
+        "✍️ **MESSAGE À PUBLIER**\n\n"
+        "Envoie-moi maintenant le message que tu veux publier dans le canal."
+    )
+
+
+# ============================================================
 # RESET
 # ============================================================
 
@@ -666,6 +684,7 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["attente_mise"] = False
     context.user_data["attente_boost"] = False
     context.user_data["attente_palier"] = False
+    context.user_data["attente_message"] = False
 
     if OWNER_ID is None:
 
@@ -710,6 +729,29 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
+    # --------------------------------------------------------
+    # MESSAGE PERSONNALISÉ
+    # --------------------------------------------------------
+
+    if context.user_data.get("attente_message"):
+
+        message_personnel = update.message.text
+
+        context.user_data["attente_message"] = False
+
+        # Envoi sans Markdown pour accepter absolument n'importe quel texte
+        await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=message_personnel,
+            parse_mode=None
+        )
+
+        await update.message.reply_text(
+            "✅ Message publié dans le canal !"
+        )
+
+        return
+
     texte = update.message.text.replace(",", ".").strip()
 
     # --------------------------------------------------------
@@ -734,6 +776,7 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["attente_mise"] = False
             context.user_data["attente_palier"] = False
             context.user_data["attente_boost"] = False
+            context.user_data["attente_message"] = False
 
             message = (
                 "🔄 **RESET TOKEN - LEVEL**\n\n"
@@ -808,7 +851,6 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         choix = int(texte)
 
-        # Vérification du nombre de victoires nécessaire
         conditions = {
             2: 3,
             3: 5,
@@ -827,7 +869,6 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # Vérifie qu'un boost de ce niveau a bien été débloqué
         if user_id not in boosts_debloques:
             boosts_debloques[user_id] = set()
 
@@ -838,7 +879,6 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # Charge le boost
         boost_actif[user_id] = choix
 
         context.user_data["attente_boost"] = False
@@ -1009,6 +1049,7 @@ app.add_handler(CommandHandler("perdu", perdu))
 app.add_handler(CommandHandler("boost", boost))
 app.add_handler(CommandHandler("goal", goal))
 app.add_handler(CommandHandler("var", var))
+app.add_handler(CommandHandler("message", message_personnalise))
 app.add_handler(CommandHandler("reset", reset))
 
 app.add_handler(
