@@ -61,7 +61,7 @@ async def envoyer_au_canal(context, texte):
 # ============================================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # On nettoie les éventuelles attentes précédentes
+
     context.user_data["attente_mise"] = False
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
@@ -72,6 +72,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Le bot est bien connecté.\n\n"
         "💰 Mise mensuelle : /mise\n"
         "📊 Palier : /palier\n"
+        "🚨 Rappel palier : /rappel\n"
         "🎲 Lancer le dé : /de\n"
         "🧮 Calculatrice : /calcul\n"
         "🪙 Tokens : /token\n"
@@ -90,7 +91,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def mise(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    # On nettoie toutes les autres attentes
     context.user_data["attente_mise"] = True
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
@@ -116,7 +116,6 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # On nettoie toutes les autres attentes
     context.user_data["attente_palier"] = True
     context.user_data["attente_mise"] = False
     context.user_data["confirmation_reset"] = False
@@ -133,12 +132,96 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ============================================================
+# RAPPEL PALIER
+# ============================================================
+
+async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_id = update.effective_user.id
+
+    # Vérifie qu'une mise existe
+    mise_actuelle = mises.get(user_id)
+
+    if mise_actuelle is None:
+        await update.message.reply_text(
+            "❌ Tu dois d'abord définir ta mise avec /mise"
+        )
+        return
+
+    # Vérifie qu'un palier est indiqué
+    if not context.args:
+        await update.message.reply_text(
+            "🚨 RAPPEL PALIER 🚨\n\n"
+            "Indique le palier à rappeler.\n\n"
+            "Exemples :\n"
+            "/rappel 2\n"
+            "/rappel 3\n"
+            "/rappel 4\n"
+            "/rappel 5"
+        )
+        return
+
+    # Vérifie que l'entrée est un nombre
+    try:
+        palier_rappel = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Palier invalide.\n\n"
+            "Utilise uniquement : 2, 3, 4 ou 5."
+        )
+        return
+
+    # Limite aux paliers 2 à 5
+    if palier_rappel < 2 or palier_rappel > 5:
+        await update.message.reply_text(
+            "❌ Palier invalide.\n\n"
+            "Utilise uniquement : 2, 3, 4 ou 5."
+        )
+        return
+
+    # Annule les éventuelles attentes
+    context.user_data["attente_mise"] = False
+    context.user_data["attente_palier"] = False
+    context.user_data["confirmation_reset"] = False
+    context.user_data["proposition_owner"] = False
+
+    # Message pour les paliers 2 à 4
+    if palier_rappel < 5:
+
+        message = (
+            "🚨 **RAPPEL** 🚨\n\n"
+            f"🎯 **PALIER ×{palier_rappel} ATTEINT !**\n\n"
+            f"💰 Mise de départ : **{mise_actuelle:.2f} €**\n"
+            f"📈 **FOIS {palier_rappel} ACQUIS ✅**\n"
+            f"💵 **MERCI LE PALIER {palier_rappel} !!**\n\n"
+            f"🚗 En route pour le palier {palier_rappel + 1} !!!"
+        )
+
+    # Message spécial pour le palier 5
+    else:
+
+        message = (
+            "🚨 **RAPPEL** 🚨\n\n"
+            "🎯 **PALIER ×5 ATTEINT !**\n\n"
+            f"💰 Mise de départ : **{mise_actuelle:.2f} €**\n"
+            "📈 **FOIS 5 ACQUIS ✅**\n"
+            "💵 **MERCI LE PALIER 5 !!**\n\n"
+            "🏆 **OBJECTIF FINAL ATTEINT !!!**"
+        )
+
+    await envoyer_au_canal(context, message)
+
+    await update.message.reply_text(
+        f"✅ Rappel du palier {palier_rappel} publié dans le canal !"
+    )
+
+
+# ============================================================
 # DE
 # ============================================================
 
 async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    # On annule les éventuelles attentes
     context.user_data["attente_mise"] = False
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
@@ -418,11 +501,9 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
-    # Nettoyage des anciennes attentes
     context.user_data["attente_mise"] = False
     context.user_data["attente_palier"] = False
 
-    # Première utilisation : on enregistre le propriétaire
     if OWNER_ID is None:
 
         context.user_data["proposition_owner"] = True
@@ -656,6 +737,7 @@ app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("mise", mise))
 app.add_handler(CommandHandler("palier", palier))
+app.add_handler(CommandHandler("rappel", rappel))
 app.add_handler(CommandHandler("de", de))
 app.add_handler(CommandHandler("calcul", calcul))
 app.add_handler(CommandHandler("token", token))
