@@ -27,6 +27,15 @@ tokens = {}
 paliers_atteints = {}
 derniers_des = {}
 
+# Série de victoires consécutives
+victoires_consecutives = {}
+
+# Boost actuellement chargé pour le prochain gain
+boost_actif = {}
+
+# Permet de savoir quels boosts ont déjà été débloqués pendant la série
+boosts_debloques = {}
+
 
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -66,6 +75,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
+    context.user_data["attente_boost"] = False
 
     await update.message.reply_text(
         "🚀 Bienvenue sur Token - Level !\n\n"
@@ -79,6 +89,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📈 Profil : /profil\n"
         "🎉 Victoire : /gagne\n"
         "💔 Défaite : /perdu\n"
+        "🔥 Boost : /boost\n"
         "⚽ Goal : /goal\n"
         "🟥 VAR : /var\n"
         "🔄 Reset : /reset"
@@ -95,6 +106,7 @@ async def mise(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
+    context.user_data["attente_boost"] = False
 
     await update.message.reply_text(
         "💰 Quelle est ta mise mensuelle de départ ?\n\n"
@@ -120,6 +132,7 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["attente_mise"] = False
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
+    context.user_data["attente_boost"] = False
 
     await update.message.reply_text(
         "📊 Quel palier as-tu atteint ?\n\n"
@@ -139,7 +152,6 @@ async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
-    # Vérifie qu'une mise existe
     mise_actuelle = mises.get(user_id)
 
     if mise_actuelle is None:
@@ -148,7 +160,6 @@ async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Vérifie qu'un palier est indiqué
     if not context.args:
         await update.message.reply_text(
             "🚨 RAPPEL PALIER 🚨\n\n"
@@ -161,7 +172,6 @@ async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Vérifie que l'entrée est un nombre
     try:
         palier_rappel = int(context.args[0])
     except ValueError:
@@ -171,7 +181,6 @@ async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Limite aux paliers 2 à 5
     if palier_rappel < 2 or palier_rappel > 5:
         await update.message.reply_text(
             "❌ Palier invalide.\n\n"
@@ -179,13 +188,12 @@ async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Annule les éventuelles attentes
     context.user_data["attente_mise"] = False
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
+    context.user_data["attente_boost"] = False
 
-    # Message pour les paliers 2 à 4
     if palier_rappel < 5:
 
         message = (
@@ -197,7 +205,6 @@ async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🚗 En route pour le palier {palier_rappel + 1} !!!"
         )
 
-    # Message spécial pour le palier 5
     else:
 
         message = (
@@ -226,6 +233,7 @@ async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
+    context.user_data["attente_boost"] = False
 
     resultat = random.randint(1, 3)
 
@@ -316,6 +324,19 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id not in paliers_atteints:
             paliers_atteints[user_id] = 1
 
+        variation_originale = variation
+        boost_utilise = None
+
+        # Le boost ne s'applique qu'à un gain positif
+        if variation > 0 and user_id in boost_actif:
+
+            multiplicateur = boost_actif[user_id]
+            variation = variation * multiplicateur
+            boost_utilise = multiplicateur
+
+            # Le boost est consommé après utilisation
+            del boost_actif[user_id]
+
         tokens[user_id] += variation
 
         if tokens[user_id] < 0:
@@ -339,18 +360,38 @@ async def token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             message_palier = f"📊 Palier actuel : ×{nouveau_palier}"
 
-        message = (
-            "🪙 **TOKEN - LEVEL**\n\n"
-            f"📈 Variation : **{variation:+d} Token**\n\n"
-            f"💰 Total : **{tokens[user_id]} Token**\n"
-            f"{message_palier}"
-        )
+        if boost_utilise:
+
+            message = (
+                "🚀 **SUPER BOOST UTILISÉ !** 🚀\n\n"
+                f"🔥 Boost : **×{boost_utilise}**\n"
+                f"🪙 Gain initial : **+{variation_originale} Token**\n"
+                f"💥 Gain boosté : **+{variation} Token**\n\n"
+                f"💰 Total : **{tokens[user_id]} Token**\n"
+                f"{message_palier}"
+            )
+
+        else:
+
+            message = (
+                "🪙 **TOKEN - LEVEL**\n\n"
+                f"📈 Variation : **{variation:+d} Token**\n\n"
+                f"💰 Total : **{tokens[user_id]} Token**\n"
+                f"{message_palier}"
+            )
 
         await envoyer_au_canal(context, message)
 
-        await update.message.reply_text(
-            "✅ Mise à jour des Tokens publiée dans le canal !"
-        )
+        if boost_utilise:
+            await update.message.reply_text(
+                f"🚀 BOOST ×{boost_utilise} utilisé !\n"
+                f"🪙 Ton gain de +{variation_originale} Token devient "
+                f"+{variation} Token !"
+            )
+        else:
+            await update.message.reply_text(
+                "✅ Mise à jour des Tokens publiée dans le canal !"
+            )
 
     except ValueError:
         await update.message.reply_text(
@@ -370,6 +411,8 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_tokens = tokens.get(user_id, 0)
     palier_actuel = paliers_atteints.get(user_id, 1)
     dernier_de = derniers_des.get(user_id, "—")
+    serie = victoires_consecutives.get(user_id, 0)
+    boost = boost_actif.get(user_id)
 
     if palier_actuel == 5:
         progression = "🏆 Palier final ×5"
@@ -382,11 +425,18 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         progression = "🔰 Départ"
 
+    if boost:
+        boost_message = f"🚀 Boost actif : ×{boost}"
+    else:
+        boost_message = "🚀 Boost actif : aucun"
+
     message = (
         "📊 **TON PROFIL TOKEN - LEVEL**\n\n"
         f"🪙 Tokens : **{total_tokens}**\n"
         f"{progression}\n"
-        f"🎲 Dernier dé : **{dernier_de}**\n\n"
+        f"🎲 Dernier dé : **{dernier_de}**\n"
+        f"🔥 Série : **{serie} victoire(s)**\n"
+        f"{boost_message}\n\n"
         "🎯 **BARÈME**\n"
         "×2 → 10 tokens\n"
         "×3 → 20 tokens\n"
@@ -407,11 +457,24 @@ async def profil(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
+    user_id = update.effective_user.id
+
+    # Ajoute une victoire à la série
+    victoires_consecutives[user_id] = (
+        victoires_consecutives.get(user_id, 0) + 1
+    )
+
+    serie = victoires_consecutives[user_id]
+
+    # Initialise les boosts débloqués pour cette série
+    if user_id not in boosts_debloques:
+        boosts_debloques[user_id] = set()
+
     message = (
         "🚨💥 **ENCORE UNE VICTOIRE !** 💥🚨\n\n"
         "🎯 **PARI GAGNÉ !**\n"
         "🪙 Des **Tokens supplémentaires** viennent de tomber !\n\n"
-        "🔥🔥 Il enchaîne les victoires...\n"
+        f"🔥 **SÉRIE EN COURS : {serie} VICTOIRE(S) D’AFFILÉE !** 🔥\n\n"
         "📈 Le compteur grimpe encore...\n"
         "🏆 Les paliers se rapprochent...\n\n"
         "👀 **Mais où va-t-il s'arrêter ?!**\n\n"
@@ -421,8 +484,49 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await envoyer_au_canal(context, message)
 
+    # Annonce du nouveau boost débloqué
+    if serie in [3, 5, 10] and serie not in boosts_debloques[user_id]:
+
+        boosts_debloques[user_id].add(serie)
+
+        if serie == 3:
+            boost_message = (
+                "🔥 **3 VICTOIRES D’AFFILÉE !!!** 🔥\n\n"
+                "🚨 **SUPER BOOST ACTIVÉ !** 🚨\n\n"
+                "🪙 **PROCHAIN GAIN DE TOKENS = ×2 !** 💥\n\n"
+                "🎯 Le boost est chargé…\n"
+                "👀 **À toi de choisir le bon moment !**\n\n"
+                "🚀 **ON VA CHERCHER LE DOUBLE !**"
+            )
+
+        elif serie == 5:
+            boost_message = (
+                "🔥🔥 **5 VICTOIRES D’AFFILÉE !!!** 🔥🔥\n\n"
+                "🚨 **SUPER BOOST ×3 ACTIVÉ !** 🚨\n\n"
+                "🪙 **PROCHAIN GAIN DE TOKENS = ×3 !!!** 💥💥💥\n\n"
+                "🎯 La série continue…\n"
+                "📈 **Le boost monte d’un niveau !**\n\n"
+                "👀 **ÇA COMMENCE À DEVENIR TRÈS SÉRIEUX…**\n\n"
+                "🚀 **ON VA CHERCHER LE TRIPLE !**"
+            )
+
+        else:
+            boost_message = (
+                "🚨🚨🚨 **10 VICTOIRES D’AFFILÉE !!!** 🚨🚨🚨\n\n"
+                "🏆🔥 **SÉRIE LÉGENDAIRE !** 🔥🏆\n\n"
+                "🚀🚀 **BOOST FUSÉE ACTIVÉ !!!** 🚀🚀\n\n"
+                "🪙 **PROCHAIN GAIN DE TOKENS = ×10 !!!** 💥💥💥\n\n"
+                "💣 **×10 TOKENS !**\n\n"
+                "👑 **10 PARIS. 10 VICTOIRES.**\n\n"
+                "🚀 **ON DÉCOLLE POUR LE ×10 !!!**\n\n"
+                "🪙🔥 **TOKEN - LEVEL EST EN FUSION !**"
+            )
+
+        await envoyer_au_canal(context, boost_message)
+
     await update.message.reply_text(
-        "✅ Victoire publiée dans le canal !"
+        f"✅ Victoire publiée !\n"
+        f"🔥 Série actuelle : {serie} victoire(s) d’affilée."
     )
 
 
@@ -431,6 +535,15 @@ async def gagne(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 
 async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_id = update.effective_user.id
+
+    # Reset de la série
+    victoires_consecutives[user_id] = 0
+
+    # Les boosts non utilisés sont annulés
+    boost_actif.pop(user_id, None)
+    boosts_debloques[user_id] = set()
 
     message = (
         "💀😂 **ET BAH ALORS… ON A GLISSÉ CHEF !** 😂💀\n\n"
@@ -448,7 +561,56 @@ async def perdu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await envoyer_au_canal(context, message)
 
     await update.message.reply_text(
-        "💔 Défaite publiée dans le canal !"
+        "💔 Défaite publiée dans le canal !\n"
+        "🔄 Série remise à 0."
+    )
+
+
+# ============================================================
+# BOOST
+# ============================================================
+
+async def boost(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_id = update.effective_user.id
+    serie = victoires_consecutives.get(user_id, 0)
+
+    context.user_data["attente_boost"] = False
+
+    # Aucun boost disponible
+    if serie < 3:
+
+        await update.message.reply_text(
+            "🔒 **BOOST VERROUILLÉ** 🔒\n\n"
+            f"🔥 Série actuelle : **{serie} victoire(s)**\n\n"
+            "Il faut au minimum **3 victoires d’affilée**.\n\n"
+            "🎯 3 victoires → BOOST ×2\n"
+            "🎯 5 victoires → BOOST ×3\n"
+            "🎯 10 victoires → BOOST FUSÉE ×10"
+        )
+        return
+
+    # Détermine les boosts disponibles
+    disponibles = []
+
+    if serie >= 3:
+        disponibles.append("2️⃣ BOOST ×2")
+
+    if serie >= 5:
+        disponibles.append("3️⃣ BOOST ×3")
+
+    if serie >= 10:
+        disponibles.append("🔟 BOOST FUSÉE ×10")
+
+    context.user_data["attente_boost"] = True
+
+    await update.message.reply_text(
+        "🚀 **SUPER BOOST** 🚀\n\n"
+        f"🔥 Série actuelle : **{serie} victoire(s) d’affilée**\n\n"
+        "Choisis ton boost :\n\n"
+        + "\n".join(disponibles)
+        + "\n\n"
+        "Réponds avec **2**, **3** ou **10**."
     )
 
 
@@ -502,6 +664,7 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     context.user_data["attente_mise"] = False
+    context.user_data["attente_boost"] = False
     context.user_data["attente_palier"] = False
 
     if OWNER_ID is None:
@@ -532,7 +695,9 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💰 La mise\n"
         "🪙 Les Tokens\n"
         "📊 Le palier\n"
-        "🎲 Le dernier dé\n\n"
+        "🎲 Le dernier dé\n"
+        "🔥 La série de victoires\n"
+        "🚀 Les boosts\n\n"
         "❗ Cette action est irréversible.\n\n"
         "Écris **CONFIRMER** pour continuer.",
         parse_mode="Markdown"
@@ -561,10 +726,14 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tokens.pop(user_id, None)
             paliers_atteints.pop(user_id, None)
             derniers_des.pop(user_id, None)
+            victoires_consecutives.pop(user_id, None)
+            boost_actif.pop(user_id, None)
+            boosts_debloques.pop(user_id, None)
 
             context.user_data["confirmation_reset"] = False
             context.user_data["attente_mise"] = False
             context.user_data["attente_palier"] = False
+            context.user_data["attente_boost"] = False
 
             message = (
                 "🔄 **RESET TOKEN - LEVEL**\n\n"
@@ -572,7 +741,9 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "💰 Mise : aucune\n"
                 "🪙 Tokens : 0\n"
                 "📊 Palier : 🔰 Départ\n"
-                "🎲 Dernier dé : —\n\n"
+                "🎲 Dernier dé : —\n"
+                "🔥 Série : 0 victoire\n"
+                "🚀 Boost : aucun\n\n"
                 "🚀 **Nouveau départ !**"
             )
 
@@ -615,6 +786,97 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 "❌ Réponse incorrecte."
             )
+
+        return
+
+    # --------------------------------------------------------
+    # RÉPONSE AU BOOST
+    # --------------------------------------------------------
+
+    if context.user_data.get("attente_boost"):
+
+        user_id = update.effective_user.id
+        serie = victoires_consecutives.get(user_id, 0)
+
+        if texte not in ["2", "3", "10"]:
+
+            await update.message.reply_text(
+                "❌ Choix invalide.\n\n"
+                "Réponds avec **2**, **3** ou **10**."
+            )
+            return
+
+        choix = int(texte)
+
+        # Vérification du nombre de victoires nécessaire
+        conditions = {
+            2: 3,
+            3: 5,
+            10: 10,
+        }
+
+        victoires_requises = conditions[choix]
+
+        if serie < victoires_requises:
+
+            await update.message.reply_text(
+                "🔒 **BOOST VERROUILLÉ** 🔒\n\n"
+                f"Il te faut **{victoires_requises} victoires d’affilée** "
+                f"pour utiliser le BOOST ×{choix}.\n\n"
+                f"🔥 Série actuelle : **{serie}**"
+            )
+            return
+
+        # Vérifie qu'un boost de ce niveau a bien été débloqué
+        if user_id not in boosts_debloques:
+            boosts_debloques[user_id] = set()
+
+        if victoires_requises not in boosts_debloques[user_id]:
+
+            await update.message.reply_text(
+                "❌ Ce boost n'est pas disponible actuellement."
+            )
+            return
+
+        # Charge le boost
+        boost_actif[user_id] = choix
+
+        context.user_data["attente_boost"] = False
+
+        if choix == 2:
+
+            message = (
+                "🚀 **BOOST ×2 CHARGÉ !** 🚀\n\n"
+                "🪙 **LE PROCHAIN GAIN DE TOKENS SERA DOUBLÉ !** 💥\n\n"
+                "🎯 Le boost est prêt.\n"
+                "👀 **Il ne reste plus qu'à l'utiliser !**"
+            )
+
+        elif choix == 3:
+
+            message = (
+                "🚀🚀 **BOOST ×3 CHARGÉ !** 🚀🚀\n\n"
+                "🪙 **LE PROCHAIN GAIN DE TOKENS SERA TRIPLÉ !** 💥💥💥\n\n"
+                "🔥 La série est en feu.\n"
+                "👀 **On va chercher le TRIPLE !**"
+            )
+
+        else:
+
+            message = (
+                "🚨🚨🚨 **BOOST FUSÉE ×10 CHARGÉ !!!** 🚨🚨🚨\n\n"
+                "🚀 **LE PROCHAIN GAIN DE TOKENS SERA MULTIPLIÉ PAR 10 !!!** 🚀\n\n"
+                "💣💣💣 **×10 TOKENS !** 💣💣💣\n\n"
+                "👑 **LA SÉRIE EST LÉGENDAIRE.**\n"
+                "🚀 **ON DÉCOLLE !!!**"
+            )
+
+        await envoyer_au_canal(context, message)
+
+        await update.message.reply_text(
+            f"✅ BOOST ×{choix} chargé !\n\n"
+            f"🪙 Le prochain gain positif de Tokens sera multiplié par ×{choix}."
+        )
 
         return
 
@@ -744,6 +1006,7 @@ app.add_handler(CommandHandler("token", token))
 app.add_handler(CommandHandler("profil", profil))
 app.add_handler(CommandHandler("gagne", gagne))
 app.add_handler(CommandHandler("perdu", perdu))
+app.add_handler(CommandHandler("boost", boost))
 app.add_handler(CommandHandler("goal", goal))
 app.add_handler(CommandHandler("var", var))
 app.add_handler(CommandHandler("reset", reset))
