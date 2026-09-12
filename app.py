@@ -1,6 +1,7 @@
 import os
 import threading
 import random
+import html
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from telegram import Update
@@ -77,6 +78,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
     context.user_data["attente_message"] = False
+    context.user_data["attente_bet"] = False
+    context.user_data["attente_cote"] = False
+    context.user_data["pari_en_cours"] = None
 
     await update.message.reply_text(
         "🚀 Bienvenue sur Token - Level !\n\n"
@@ -94,6 +98,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "⚽ Goal : /goal\n"
         "🟥 VAR : /var\n"
         "✍️ Message personnalisé : /message\n"
+        "🎯 Bet : /bet\n"
         "🔄 Reset : /reset"
     )
 
@@ -110,6 +115,9 @@ async def mise(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
     context.user_data["attente_message"] = False
+    context.user_data["attente_bet"] = False
+    context.user_data["attente_cote"] = False
+    context.user_data["pari_en_cours"] = None
 
     await update.message.reply_text(
         "💰 Quelle est ta mise mensuelle de départ ?\n\n"
@@ -137,6 +145,9 @@ async def palier(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
     context.user_data["attente_message"] = False
+    context.user_data["attente_bet"] = False
+    context.user_data["attente_cote"] = False
+    context.user_data["pari_en_cours"] = None
 
     await update.message.reply_text(
         "📊 Quel palier as-tu atteint ?\n\n"
@@ -198,6 +209,9 @@ async def rappel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
     context.user_data["attente_message"] = False
+    context.user_data["attente_bet"] = False
+    context.user_data["attente_cote"] = False
+    context.user_data["pari_en_cours"] = None
 
     if palier_rappel < 5:
 
@@ -240,6 +254,9 @@ async def de(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
     context.user_data["attente_message"] = False
+    context.user_data["attente_bet"] = False
+    context.user_data["attente_cote"] = False
+    context.user_data["pari_en_cours"] = None
 
     resultat = random.randint(1, 3)
 
@@ -657,19 +674,44 @@ async def var(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def message_personnalise(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    # On désactive les autres attentes
     context.user_data["attente_mise"] = False
     context.user_data["attente_palier"] = False
     context.user_data["confirmation_reset"] = False
     context.user_data["proposition_owner"] = False
     context.user_data["attente_boost"] = False
+    context.user_data["attente_bet"] = False
+    context.user_data["attente_cote"] = False
+    context.user_data["pari_en_cours"] = None
 
-    # On active l'attente du message
     context.user_data["attente_message"] = True
 
     await update.message.reply_text(
         "✍️ **MESSAGE À PUBLIER**\n\n"
         "Envoie-moi maintenant le message que tu veux publier dans le canal."
+    )
+
+
+# ============================================================
+# BET
+# ============================================================
+
+async def bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    context.user_data["attente_mise"] = False
+    context.user_data["attente_palier"] = False
+    context.user_data["confirmation_reset"] = False
+    context.user_data["proposition_owner"] = False
+    context.user_data["attente_boost"] = False
+    context.user_data["attente_message"] = False
+    context.user_data["attente_cote"] = False
+    context.user_data["pari_en_cours"] = None
+
+    context.user_data["attente_bet"] = True
+
+    await update.message.reply_text(
+        "🎯 **SUR QUOI TU MISES ?**\n\n"
+        "Écris simplement ton pari.\n\n"
+        "Exemple : **Olise buteur**"
     )
 
 
@@ -685,6 +727,9 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["attente_boost"] = False
     context.user_data["attente_palier"] = False
     context.user_data["attente_message"] = False
+    context.user_data["attente_bet"] = False
+    context.user_data["attente_cote"] = False
+    context.user_data["pari_en_cours"] = None
 
     if OWNER_ID is None:
 
@@ -730,7 +775,7 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # --------------------------------------------------------
-    # MESSAGE PERSONNALISÉ
+    # RÉPONSE AU MESSAGE PERSONNALISÉ
     # --------------------------------------------------------
 
     if context.user_data.get("attente_message"):
@@ -739,7 +784,6 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data["attente_message"] = False
 
-        # Envoi sans Markdown pour accepter absolument n'importe quel texte
         await context.bot.send_message(
             chat_id=CHANNEL_ID,
             text=message_personnel,
@@ -748,6 +792,94 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
             "✅ Message publié dans le canal !"
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # RÉPONSE AU BET
+    # --------------------------------------------------------
+
+    if context.user_data.get("attente_bet"):
+
+        # On reprend exactement ce que tu écris
+        pari = update.message.text.strip()
+
+        if not pari:
+            await update.message.reply_text(
+                "❌ Le pari ne peut pas être vide.\n\n"
+                "Écris simplement ton pari."
+            )
+            return
+
+        context.user_data["pari_en_cours"] = pari
+        context.user_data["attente_bet"] = False
+        context.user_data["attente_cote"] = True
+
+        await update.message.reply_text(
+            "💰 **QUELLE EST LA COTE ?**\n\n"
+            "Exemple : **2.50**\n\n"
+            "Tu peux aussi écrire : **2,50** ou **@2.50**"
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # RÉPONSE À LA COTE DU BET
+    # --------------------------------------------------------
+
+    if context.user_data.get("attente_cote"):
+
+        cote_texte = update.message.text.strip()
+
+        # Accepte @2.50, 2.50 et 2,50
+        cote_nettoyee = cote_texte.replace("@", "").replace(",", ".")
+
+        try:
+            cote = float(cote_nettoyee)
+
+            if cote <= 1:
+                raise ValueError
+
+        except ValueError:
+
+            await update.message.reply_text(
+                "❌ Cote invalide.\n\n"
+                "Exemples : **2.50**, **2,50** ou **@2.50**"
+            )
+            return
+
+        pari = context.user_data.get("pari_en_cours")
+
+        if not pari:
+            context.user_data["attente_cote"] = False
+            await update.message.reply_text(
+                "❌ Une erreur est survenue.\n\n"
+                "Utilise à nouveau /bet."
+            )
+            return
+
+        # Sécurise le texte du pari pour HTML
+        pari_securise = html.escape(pari)
+
+        message_bet = (
+            "🚨🔴 <b>BET EN LIVE</b> 🔴🚨\n\n"
+            f"⚽ <b>{pari_securise}</b>\n"
+            f"🎯 <b>Cote : @{cote:.2f}</b>\n\n"
+            "🪙 <b>On essaie de monter les Tokens !</b> 🚀🔥"
+        )
+
+        await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=message_bet,
+            parse_mode="HTML"
+        )
+
+        context.user_data["attente_cote"] = False
+        context.user_data["pari_en_cours"] = None
+
+        await update.message.reply_text(
+            "✅ Bet publié dans le canal !"
         )
 
         return
@@ -777,6 +909,9 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["attente_palier"] = False
             context.user_data["attente_boost"] = False
             context.user_data["attente_message"] = False
+            context.user_data["attente_bet"] = False
+            context.user_data["attente_cote"] = False
+            context.user_data["pari_en_cours"] = None
 
             message = (
                 "🔄 **RESET TOKEN - LEVEL**\n\n"
@@ -1050,6 +1185,7 @@ app.add_handler(CommandHandler("boost", boost))
 app.add_handler(CommandHandler("goal", goal))
 app.add_handler(CommandHandler("var", var))
 app.add_handler(CommandHandler("message", message_personnalise))
+app.add_handler(CommandHandler("bet", bet))
 app.add_handler(CommandHandler("reset", reset))
 
 app.add_handler(
