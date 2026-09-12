@@ -1002,12 +1002,12 @@ async def recevoir_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         pari_securise = html.escape(pari)
 
-        message_bet = (
-            "✅🟢 <b>BET VALIDÉE</b> 🟢✅\n\n"
-            f"⚽ <b>{pari_securise}</b>\n"
-            f"🎯 <b>Cote : @{cote:.2f}</b>\n\n"
-            "🪙 <b>On encaisse les tokens vont grimper !</b> 🚀🔥"
-        )
+  message_bet = (
+    "🚨🔴 <b>BET EN LIVE</b> 🔴🚨\n\n"
+    f"⚽ {pari_securise}\n"
+    f"🎯 Cote : @{cote:.2f}\n\n"
+    "🪙 On essaie de monter les Tokens ! 🚀🔥"
+)
 
         await context.bot.send_message(
             chat_id=CHANNEL_ID,
